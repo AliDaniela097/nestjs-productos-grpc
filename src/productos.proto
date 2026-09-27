@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package productos;
+
+import "google/protobuf/empty.proto";
+
+message ProductoRequest {
+  int32 id = 1;
+}
+
+message ProductoResponse {
+  int32 id = 1;
+  string nombre = 2;
+  double precio = 3;
+}
+
+message FiltroPrecioRequest {
+  double precioMaximo = 1;
+}
+
+service ProductoService {
+  rpc ObtenerProducto(ProductoRequest) returns (ProductoResponse);
+  rpc ListarProductos(google.protobuf.Empty) returns (stream ProductoResponse);
+  rpc BuscarPorPrecioMaximo(FiltroPrecioRequest) returns (stream ProductoResponse);
+}
