@@ -1,8 +1,9 @@
-import { Controller, Get, Inject, NotFoundException, OnModuleInit, Param, ParseIntPipe, Query } from '@nestjs/common';
+import { Controller, Get, Inject, NotFoundException, OnModuleInit, Param, ParseFloatPipe, ParseIntPipe, Query } from '@nestjs/common';
 import type { ClientGrpc } from '@nestjs/microservices';
-import { ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { status } from '@grpc/grpc-js';
 import { Observable, catchError, throwError, toArray } from 'rxjs';
+import { ProductoDto } from './producto.dto';
 
 interface ProductoResponse { id: number; nombre: string; precio: number; }
 
@@ -26,6 +27,7 @@ export class ProductosHttpController implements OnModuleInit {
 
   @Get()
   @ApiOperation({ summary: 'Lista todos los productos (gRPC: ListarProductos, server streaming)' })
+  @ApiOkResponse({ type: [ProductoDto] })
   listar() {
     return this.productoService.listarProductos({}).pipe(toArray());
   }
@@ -33,15 +35,20 @@ export class ProductosHttpController implements OnModuleInit {
   @Get('buscar')
   @ApiOperation({ summary: 'Filtra por precio máximo (gRPC: BuscarPorPrecioMaximo, server streaming)' })
   @ApiQuery({ name: 'precioMaximo', type: Number, example: 50 })
-  buscar(@Query('precioMaximo') precioMaximo: string) {
+  @ApiOkResponse({ type: [ProductoDto] })
+  @ApiBadRequestResponse({ description: 'precioMaximo falta o no es un número' })
+  buscar(@Query('precioMaximo', ParseFloatPipe) precioMaximo: number) {
     return this.productoService
-      .buscarPorPrecioMaximo({ precioMaximo: Number(precioMaximo) })
+      .buscarPorPrecioMaximo({ precioMaximo })
       .pipe(toArray());
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Obtiene un producto por id (gRPC: ObtenerProducto, unary)' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiOkResponse({ type: ProductoDto })
+  @ApiBadRequestResponse({ description: 'El id no es un número entero' })
+  @ApiNotFoundResponse({ description: 'No existe un producto con ese id' })
   obtener(@Param('id', ParseIntPipe) id: number) {
     return this.productoService.obtenerProducto({ id }).pipe(
       catchError((err) => {

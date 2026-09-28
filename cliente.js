@@ -6,7 +6,9 @@ const PROTO_PATH = path.join(__dirname, 'src', 'productos.proto');
 const packageDef = protoLoader.loadSync(PROTO_PATH, { keepCase: true, longs: String, enums: String, defaults: true });
 const proto = grpc.loadPackageDefinition(packageDef).productos;
 
-const client = new proto.ProductoService('20.80.41.52:5000', grpc.credentials.createInsecure());
+// Para probar en local: GRPC_URL=localhost:5000 node cliente.js
+const GRPC_URL = process.env.GRPC_URL ?? '20.80.41.52:5000';
+const client = new proto.ProductoService(GRPC_URL, grpc.credentials.createInsecure());
 
 console.log('== ObtenerProducto (unary) ==');
 client.obtenerProducto({ id: 1 }, (err, producto) => {

@@ -64,7 +64,11 @@ npm run start
 - gRPC: `localhost:5000`
 - Swagger: http://localhost:3000/api
 
-Para usar el cliente en local, cambiar en `cliente.js` la dirección `20.80.41.52:5000` por `localhost:5000`.
+Para usar el cliente en local, indicar la dirección con la variable `GRPC_URL`:
+
+```bash
+GRPC_URL=localhost:5000 node cliente.js
+```
 
 ## Despliegue
 
