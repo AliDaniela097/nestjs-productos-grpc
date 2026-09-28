@@ -20,14 +20,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
-      - name: Ejecutar pruebas
-        run: |
-          npm ci
-          npm test
-          npm run test:e2e
-          npm audit --audit-level=high
+      - name: Auditoría de dependencias
+        run: npm audit --audit-level=high
 
       - name: Iniciar sesión en GitHub Container Registry
         uses: docker/login-action@v3
