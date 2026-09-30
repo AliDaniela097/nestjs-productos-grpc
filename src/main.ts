@@ -42,7 +42,8 @@ function ajustarHtmlSwagger(req: Request, res: Response, next: NextFunction) {
 async function bootstrap() {
   // 1. Crear la app HTTP (para Swagger y las rutas REST)
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  app.disable('x-powered-by');
+    // Página web de prueba (frontend) en http://<servidor>:3000/
+  app.useStaticAssets(join(__dirname, 'public'));
 
   // 2. Conectarle el microservicio gRPC que ya tenías
   app.connectMicroservice<MicroserviceOptions>({

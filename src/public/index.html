@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laboratorio gRPC · Productos</title>
+<style>
+  :root {
+    --bg: #f5f7fb; --panel: #ffffff; --texto: #1b2333; --suave: #5b6578; --borde: #dfe4ee;
+    --unary: #2563eb; --stream: #7c3aed; --ok: #15803d; --err: #c0262d;
+    --codigo-bg: #0f172a; --codigo-texto: #e2e8f0;
+    --sombra: 0 1px 2px rgba(16,24,40,.06), 0 4px 16px rgba(16,24,40,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1020; --panel: #121a2e; --texto: #e6e9f2; --suave: #9aa4ba; --borde: #243049;
+      --unary: #60a5fa; --stream: #a78bfa; --ok: #4ade80; --err: #f87171; --codigo-bg: #0a0f1c;
+      --sombra: 0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3);
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--texto); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .contenedor { max-width: 1120px; margin: 0 auto; padding: 24px 16px 40px; }
+  .encabezado h1 { margin: 0; font-size: 1.6rem; }
+  .encabezado p { margin: 4px 0 0; color: var(--suave); }
+  .encabezado a { color: var(--unary); }
+  .panel { background: var(--panel); border: 1px solid var(--borde); border-radius: 14px; box-shadow: var(--sombra); padding: 18px; }
+  h2 { font-size: 1.05rem; margin: 0 0 12px; }
+
+  /* Diagrama de arquitectura */
+  .diagrama { display: flex; align-items: center; gap: 8px; margin: 20px 0; }
+  .nodo { flex: 0 0 auto; min-width: 150px; text-align: center; padding: 12px 14px; border: 2px solid var(--borde); border-radius: 12px; background: var(--panel); transition: border-color .2s, box-shadow .2s; }
+  .nodo strong { display: block; }
+  .nodo small { color: var(--suave); }
+  .nodo.activo { border-color: var(--stream); box-shadow: 0 0 0 4px color-mix(in srgb, var(--stream) 20%, transparent); }
+  .flecha { flex: 1 1 auto; min-width: 90px; text-align: center; }
+  .flecha .etq { display: inline-block; font-size: .78rem; color: var(--suave); margin-bottom: 6px; }
+  .flecha .linea { height: 4px; border-radius: 4px; background: var(--borde); position: relative; }
+  .flecha .linea::after { content: ""; position: absolute; right: -2px; top: -5px; border: 7px solid transparent; border-left-color: var(--borde); border-right: 0; }
+  .flecha.activo .linea { background: linear-gradient(90deg, var(--unary), var(--stream), var(--unary)); background-size: 200% 100%; animation: fluir 1s linear infinite; }
+  .flecha.activo .linea::after { border-left-color: var(--stream); }
+  .flecha.pulso .etq { animation: pulso .35s ease; }
+  @keyframes fluir { to { background-position: -200% 0; } }
+  @keyframes pulso { 50% { color: var(--stream); transform: scale(1.12); } }
+  @media (max-width: 720px) {
+    .diagrama { flex-direction: column; align-items: stretch; }
+    .flecha .linea { height: 28px; width: 4px; margin: 0 auto; }
+    .flecha .linea::after { left: -5px; right: auto; top: auto; bottom: -8px; border: 7px solid transparent; border-top-color: var(--borde); border-bottom: 0; }
+    .flecha.activo .linea::after { border-top-color: var(--stream); border-left-color: transparent; }
+  }
+
+  /* Tarjetas de métodos */
+  .metodos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 16px; }
+  .tarjeta { display: flex; flex-direction: column; gap: 10px; }
+  .cabecera { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cabecera h3 { margin: 0; font-size: 1rem; font-family: ui-monospace, Consolas, monospace; }
+  .insignia { font-size: .72rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; color: var(--panel); }
+  .insignia.unary { background: var(--unary); }
+  .insignia.stream { background: var(--stream); }
+  .ruta { font-family: ui-monospace, Consolas, monospace; font-size: .8rem; color: var(--suave); background: var(--bg); border: 1px solid var(--borde); border-radius: 8px; padding: 6px 8px; word-break: break-word; }
+  .fila { display: flex; gap: 8px; }
+  input { flex: 1; min-width: 0; padding: 9px 10px; border: 1px solid var(--borde); border-radius: 8px; background: var(--panel); color: var(--texto); font: inherit; }
+  button { padding: 9px 14px; border: 0; border-radius: 8px; font: inherit; font-weight: 600; cursor: pointer; color: var(--panel); background: var(--unary); }
+  button.stream { background: var(--stream); }
+  button.secundario { background: transparent; color: var(--texto); border: 1px solid var(--borde); }
+  button:disabled { opacity: .55; cursor: wait; }
+  .resultado, .lista { display: flex; flex-direction: column; gap: 6px; }
+  .resultado { min-height: 60px; }
+  .vacio { color: var(--suave); font-size: .88rem; }
+  .producto { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--borde); border-radius: 10px; animation: entrar .35s ease both; }
+  .producto .num { font-weight: 700; color: var(--stream); font-family: ui-monospace, Consolas, monospace; }
+  .producto .precio { font-weight: 600; }
+  .producto .t { grid-column: 2 / 4; font-size: .75rem; color: var(--suave); }
+  @keyframes entrar { from { opacity: 0; transform: translateY(6px); } }
+  .resumen { font-size: .82rem; padding: 6px 10px; border-radius: 8px; border: 1px solid currentColor; }
+  .resumen.ok { color: var(--ok); }
+  .resumen.err { color: var(--err); }
+  .resumen.vivo { color: var(--stream); }
+  .error { border: 1px solid var(--err); border-radius: 10px; padding: 10px; }
+  .error strong { display: block; color: var(--err); }
+  .error p { margin: 4px 0 0; }
+
+  /* Registro y contrato */
+  .abajo { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: 16px; margin-top: 16px; }
+  .titulo-panel { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .titulo-panel h2 { margin: 0; }
+  .log { list-style: none; margin: 0; padding: 12px; height: 320px; overflow: auto; background: var(--codigo-bg); color: var(--codigo-texto); border-radius: 10px; font: 13px/1.55 ui-monospace, Consolas, monospace; }
+  .log li { display: flex; gap: 10px; white-space: pre-wrap; word-break: break-word; }
+  .log .hora { color: #7c8aa5; flex: 0 0 auto; }
+  .log-in { color: #93c5fd; } .log-msg { color: #e2e8f0; } .log-ok { color: #86efac; } .log-err { color: #fca5a5; }
+  pre.proto { margin: 0; padding: 12px; background: var(--codigo-bg); color: var(--codigo-texto); border-radius: 10px; overflow: auto; font: 13px/1.55 ui-monospace, Consolas, monospace; }
+  .kw { color: #93c5fd; }
+  .kw-stream { color: #fbbf24; font-weight: 700; }
+  .nota { color: var(--suave); font-size: .85rem; margin: 10px 0 0; }
+  footer { margin-top: 24px; text-align: center; color: var(--suave); font-size: .85rem; }
+</style>
+</head>
+<body>
+<div class="contenedor">
+
+  <div class="encabezado">
+    <h1>Laboratorio gRPC · Productos</h1>
+    <p>Frontend → API REST (NestJS) → <strong>gRPC / HTTP/2</strong> → Microservicio · <a href="/api">Ver documentación Swagger</a></p>
+  </div>
+
+  <section class="diagrama" aria-label="Arquitectura de la solución">
+    <div class="nodo flujo"><strong>Navegador</strong><small>esta página</small></div>
+    <div class="flecha flujo"><span class="etq">REST · JSON · SSE</span><div class="linea"></div></div>
+    <div class="nodo flujo"><strong>API REST NestJS</strong><small>puerto 3000</small></div>
+    <div class="flecha flujo" id="f-grpc"><span class="etq">gRPC · Protobuf · HTTP/2</span><div class="linea"></div></div>
+    <div class="nodo flujo"><strong>Microservicio gRPC</strong><small>puerto 5000</small></div>
+  </section>
+
+  <section class="metodos">
+    <article class="panel tarjeta">
+      <div class="cabecera"><h3>ObtenerProducto</h3><span class="insignia unary">Unary</span></div>
+      <div class="ruta">rpc ObtenerProducto(ProductoRequest) returns (ProductoResponse)</div>
+      <div class="fila">
+        <input id="in-id" type="number" min="1" step="1" value="1" aria-label="Id del producto">
+        <button id="btn-obtener">Invocar</button>
+      </div>
+      <button id="btn-error" class="secundario">Probar error (id 999)</button>
+      <div id="res-obtener" class="resultado" aria-live="polite"><span class="vacio">Una petición → una sola respuesta.</span></div>
+    </article>
+
+    <article class="panel tarjeta">
+      <div class="cabecera"><h3>ListarProductos</h3><span class="insignia stream">Server streaming</span></div>
+      <div class="ruta">rpc ListarProductos(Empty) returns (stream ProductoResponse)</div>
+      <button id="btn-listar" class="stream">Invocar stream</button>
+      <div id="res-listar" class="resultado" aria-live="polite"><span class="vacio">Una petición → varios mensajes, uno por uno.</span></div>
+    </article>
+
+    <article class="panel tarjeta">
+      <div class="cabecera"><h3>BuscarPorPrecioMaximo</h3><span class="insignia stream">Server streaming</span></div>
+      <div class="ruta">rpc BuscarPorPrecioMaximo(FiltroPrecioRequest) returns (stream ProductoResponse)</div>
+      <div class="fila">
+        <input id="in-precio" type="number" min="0" step="0.01" value="50" aria-label="Precio máximo">
+        <button id="btn-buscar" class="stream">Invocar stream</button>
+      </div>
+      <div id="res-buscar" class="resultado" aria-live="polite"><span class="vacio">La cantidad de mensajes depende del precio.</span></div>
+    </article>
+  </section>
+
+  <section class="abajo">
+    <div class="panel">
+      <div class="titulo-panel"><h2>Registro gRPC</h2><button id="btn-limpiar" class="secundario">Limpiar</button></div>
+      <ul id="log" class="log" aria-live="polite"></ul>
+    </div>
+    <div class="panel">
+      <h2>Contrato <code>productos.proto</code></h2>
+<pre class="proto"><span class="kw">service</span> ProductoService {
+  <span class="kw">rpc</span> ObtenerProducto(ProductoRequest)
+      <span class="kw">returns</span> (ProductoResponse);
+  <span class="kw">rpc</span> ListarProductos(google.protobuf.Empty)
+      <span class="kw">returns</span> (<span class="kw-stream">stream</span> ProductoResponse);
+  <span class="kw">rpc</span> BuscarPorPrecioMaximo(FiltroPrecioRequest)
+      <span class="kw">returns</span> (<span class="kw-stream">stream</span> ProductoResponse);
+}
+
+<span class="kw">message</span> ProductoResponse {
+  int32  id     = 1;
+  string nombre = 2;
+  double precio = 3;
+}</pre>
+      <p class="nota">La palabra <strong>stream</strong> hace que el servidor envíe varios mensajes por una sola petición. Sin ella, el método es unary.</p>
+    </div>
+  </section>
+
+  <footer>Integración de Sistemas · PUCE · Alisson Basantes</footer>
+</div>
+
+<script>
+  const $ = (s) => document.querySelector(s);
+  const logEl = $('#log');
+  const NOMBRES_STATUS = { 0: 'OK', 1: 'CANCELLED', 2: 'UNKNOWN', 3: 'INVALID_ARGUMENT', 4: 'DEADLINE_EXCEEDED', 5: 'NOT_FOUND', 13: 'INTERNAL', 14: 'UNAVAILABLE' };
+
+  function hora() {
+    const d = new Date();
+    return d.toLocaleTimeString('es-EC', { hour12: false }) + '.' + String(d.getMilliseconds()).padStart(3, '0');
+  }
+
+  function log(tipo, texto) {
+    const li = document.createElement('li');
+    li.className = 'log-' + tipo;
+    const h = document.createElement('span'); h.className = 'hora'; h.textContent = hora();
+    const m = document.createElement('span'); m.textContent = texto;
+    li.append(h, m);
+    logEl.append(li);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  // Ilumina el diagrama mientras haya llamadas en curso
+  let activas = 0;
+  function flujo(encender) {
+    activas += encender ? 1 : -1;
+    document.querySelectorAll('.flujo').forEach((el) => el.classList.toggle('activo', activas > 0));
+  }
+
+  // Pequeña animación en la flecha gRPC cada vez que llega un mensaje
+  function pulso() {
+    const f = $('#f-grpc');
+    f.classList.remove('pulso'); void f.offsetWidth; f.classList.add('pulso');
+  }
+
+  function tarjetaProducto(p, n, ms) {
+    const div = document.createElement('div'); div.className = 'producto';
+    const num = document.createElement('span'); num.className = 'num'; num.textContent = '#' + n;
+    const nom = document.createElement('span'); nom.textContent = p.nombre;
+    const pre = document.createElement('span'); pre.className = 'precio'; pre.textContent = '$' + Number(p.precio).toFixed(2);
+    const t = document.createElement('span'); t.className = 't'; t.textContent = 'id ' + p.id + ' · llegó a los ' + ms + ' ms';
+    div.append(num, nom, pre, t);
+    return div;
+  }
+
+  function resumen(tipo, texto) {
+    const d = document.createElement('div'); d.className = 'resumen ' + tipo; d.textContent = texto; return d;
+  }
+
+  function tarjetaError(titulo, detalle, nota) {
+    const d = document.createElement('div'); d.className = 'error';
+    const s = document.createElement('strong'); s.textContent = titulo;
+    const p = document.createElement('p'); p.textContent = detalle;
+    d.append(s, p);
+    if (nota) { const n = document.createElement('p'); n.textContent = nota; d.append(n); }
+    return d;
+  }
+
+  // ----- Unary: una petición, una respuesta -----
+  async function obtener(id) {
+    const res = $('#res-obtener');
+    if (!/^\d+$/.test(id) || Number(id) < 1) {
+      res.replaceChildren(tarjetaError('Dato inválido', 'Escribe un id entero, por ejemplo 1.'));
+      return;
+    }
+    const botones = [$('#btn-obtener'), $('#btn-error')];
+    botones.forEach((b) => (b.disabled = true));
+    res.replaceChildren(resumen('vivo', 'Esperando la respuesta…'));
+    log('in', '▶ ObtenerProducto({ id: ' + id + ' })  · unary · GET /productos/' + id);
+    flujo(true);
+    const t0 = performance.now();
+    try {
+      const r = await fetch('/productos/' + encodeURIComponent(id));
+      const ms = Math.round(performance.now() - t0);
+      const body = await r.json();
+      if (r.ok) {
+        pulso();
+        log('msg', '◀ respuesta  ' + JSON.stringify(body));
+        log('ok', '✔ status 0 OK · 1 mensaje · ' + ms + ' ms · HTTP ' + r.status);
+        res.replaceChildren(tarjetaProducto(body, 1, ms), resumen('ok', 'gRPC status 0 OK → HTTP 200 · ' + ms + ' ms'));
+      } else if (r.status === 404) {
+        log('err', '✖ status 5 NOT_FOUND · "' + body.message + '" → HTTP 404');
+        res.replaceChildren(tarjetaError('gRPC status 5 · NOT_FOUND', body.message, 'La API REST lo traduce a HTTP 404 Not Found.'));
+      } else if (r.status === 400) {
+        log('err', '✖ HTTP 400 · la API REST rechazó el id antes de llamar al gRPC');
+        res.replaceChildren(tarjetaError('HTTP 400 · Bad Request', 'El id debe ser un número entero.', 'La validación ocurrió en la API REST; el gRPC no llegó a llamarse.'));
+      } else {
+        log('err', '✖ HTTP ' + r.status + ' · ' + (body.message ?? 'error'));
+        res.replaceChildren(tarjetaError('Error HTTP ' + r.status, String(body.message ?? 'Error inesperado')));
+      }
+    } catch (e) {
+      log('err', '✖ No se pudo conectar con la API REST');
+      res.replaceChildren(tarjetaError('Sin conexión', 'No se pudo conectar con la API. ¿Está encendido el servidor?'));
+    } finally {
+      flujo(false);
+      botones.forEach((b) => (b.disabled = false));
+    }
+  }
+
+  // ----- Server streaming: una petición, varios mensajes (llegan por SSE) -----
+  function streaming(metodo, etiqueta, url, res, boton) {
+    const lista = document.createElement('div'); lista.className = 'lista';
+    const estado = resumen('vivo', 'Stream abierto · esperando mensajes…');
+    res.replaceChildren(lista, estado);
+    boton.disabled = true;
+    log('in', '▶ ' + metodo + '(' + etiqueta + ')  · server streaming · GET ' + url);
+    flujo(true);
+    const t0 = performance.now();
+    let n = 0;
+    let cerrado = false;
+    const es = new EventSource(url);
+    const terminar = () => { cerrado = true; es.close(); flujo(false); boton.disabled = false; };
+
+    es.addEventListener('producto', (ev) => {
+      n++;
+      const ms = Math.round(performance.now() - t0);
+      lista.append(tarjetaProducto(JSON.parse(ev.data), n, ms));
+      pulso();
+      log('msg', '◀ mensaje ' + n + '  ' + ev.data);
+      estado.textContent = 'Stream abierto · ' + n + ' mensaje(s) recibido(s)…';
+    });
+
+    es.addEventListener('fin', () => {
+      const ms = Math.round(performance.now() - t0);
+      terminar();
+      log('ok', '✔ status 0 OK · stream completado · ' + n + ' mensaje(s) · ' + ms + ' ms');
+      estado.className = 'resumen ok';
+      estado.textContent = n === 0
+        ? 'Stream completado sin mensajes (ningún producto cumple) · ' + ms + ' ms'
+        : 'gRPC status 0 OK · ' + n + ' mensaje(s) en ' + ms + ' ms';
+    });
+
+    es.addEventListener('fallo', (ev) => {
+      terminar();
+      const d = JSON.parse(ev.data);
+      const nombre = NOMBRES_STATUS[d.code] ?? 'ERROR';
+      log('err', '✖ status ' + d.code + ' ' + nombre + ' · ' + d.details);
+      estado.replaceWith(tarjetaError('gRPC status ' + d.code + ' · ' + nombre, d.details ?? 'Error en el stream'));
+    });
+
+    es.onerror = () => {
+      if (cerrado) return;
+      terminar();
+      log('err', '✖ Se cerró la conexión con la API REST antes de terminar el stream');
+      estado.replaceWith(tarjetaError('Conexión interrumpida', 'La API no respondió o rechazó la petición. ¿Está encendido el servidor?'));
+    };
+  }
+
+  // ----- Botones -----
+  $('#btn-obtener').addEventListener('click', () => obtener($('#in-id').value.trim()));
+  $('#btn-error').addEventListener('click', () => { $('#in-id').value = 999; obtener('999'); });
+  $('#btn-listar').addEventListener('click', () =>
+    streaming('ListarProductos', 'Empty', '/productos/stream/listar', $('#res-listar'), $('#btn-listar')));
+  $('#btn-buscar').addEventListener('click', () => {
+    const v = $('#in-precio').value.trim();
+    if (v === '' || isNaN(Number(v))) {
+      $('#res-buscar').replaceChildren(tarjetaError('Dato inválido', 'Escribe un precio máximo, por ejemplo 50.'));
+      return;
+    }
+    streaming('BuscarPorPrecioMaximo', '{ precioMaximo: ' + v + ' }',
+      '/productos/stream/buscar?precioMaximo=' + encodeURIComponent(v), $('#res-buscar'), $('#btn-buscar'));
+  });
+  $('#in-id').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#btn-obtener').click(); });
+  $('#in-precio').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#btn-buscar').click(); });
+  $('#btn-limpiar').addEventListener('click', () => logEl.replaceChildren());
+
+  log('in', 'Listo. Presiona un botón para invocar un método gRPC.');
+</script>
+</body>
+</html>
