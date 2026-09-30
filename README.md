@@ -8,6 +8,7 @@ Práctica de la asignatura **Integración de Sistemas** – PUCE.
 
 | Servicio | Dirección |
 |---|---|
+| **Página web para probar gRPC** | http://20.80.41.52:3000/ |
 | Swagger (gateway REST) | http://20.80.41.52:3000/api |
 | Microservicio gRPC | `20.80.41.52:5000` |
 
